@@ -40,25 +40,42 @@ export class AuthService {
   }
 
   async login(data: any) {
-    const user = await this.prisma.user.findUnique({ where: { email: data.email } });
-    if (!user) throw new UnauthorizedException('Invalid credentials');
+    console.log(`Login attempt for: ${data.email}`);
+    try {
+      const user = await this.prisma.user.findUnique({ where: { email: data.email } });
+      if (!user) {
+        console.log('User not found');
+        throw new UnauthorizedException('Invalid credentials');
+      }
 
-    const isMatch = await bcrypt.compare(data.password, user.passwordHash);
-    if (!isMatch) throw new UnauthorizedException('Invalid credentials');
+      console.log('User found, comparing password...');
+      const isMatch = await bcrypt.compare(data.password, user.passwordHash);
+      if (!isMatch) {
+        console.log('Password mismatch');
+        throw new UnauthorizedException('Invalid credentials');
+      }
 
-    const payload = { sub: user.id, email: user.email, shopId: user.shopId, role: user.role };
-    return {
-      access_token: await this.jwtService.signAsync(payload, {
+      console.log('Password matched, signing token...');
+      const payload = { sub: user.id, email: user.email, shopId: user.shopId, role: user.role };
+      const token = await this.jwtService.signAsync(payload, {
         secret: process.env.JWT_SECRET || 'super-secret',
         expiresIn: '1d'
-      }),
-      user: {
-        id: user.id,
-        name: user.name,
-        role: user.role,
-        shopId: user.shopId
-      }
-    };
+      });
+      
+      console.log('Token signed successfully');
+      return {
+        access_token: token,
+        user: {
+          id: user.id,
+          name: user.name,
+          role: user.role,
+          shopId: user.shopId
+        }
+      };
+    } catch (error) {
+      console.error('Login error detail:', error);
+      throw error;
+    }
   }
   async createSuperAdmin(data: any) {
     const adminExists = await this.prisma.user.findFirst({ where: { role: 'SUPER_ADMIN' } });
