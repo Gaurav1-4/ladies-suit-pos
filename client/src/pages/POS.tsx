@@ -5,7 +5,7 @@ import type { CartProduct } from '@/store/useCartStore';
 import { useReactToPrint } from 'react-to-print';
 import api from '@/lib/api';
 import ReceiptPrint from '@/components/ReceiptPrint';
-import { Search, Plus, Minus, Trash2, Printer, Tag, ShoppingCart, ImageIcon } from 'lucide-react';
+import { Search, Plus, Minus, Trash2, Printer, ShoppingCart, ImageIcon } from 'lucide-react';
 
 interface POSProduct extends CartProduct {
   imageUrl?: string | null;

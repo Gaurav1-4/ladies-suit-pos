@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import api from '@/lib/api';
-import { Store, Users, Package, ShoppingCart, Plus, Building2, TrendingUp, ShieldCheck, Mail, Calendar, LayoutGrid, Globe, Activity } from 'lucide-react';
+import { Store, Users, Package, ShoppingCart, Plus, Building2, TrendingUp, ShieldCheck, Activity } from 'lucide-react';
 
 interface Shop {
   id: string;

@@ -5,6 +5,7 @@ export interface CartProduct {
   name: string;
   sellPrice: number;
   stockQty: number;
+  imageUrl?: string | null;
 }
 
 export interface CartItem extends CartProduct {
