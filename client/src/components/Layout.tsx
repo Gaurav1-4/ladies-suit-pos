@@ -1,30 +1,36 @@
-import { NavLink, useNavigate } from 'react-router-dom';
+'use client';
+
+import Link from 'next/link';
+import { usePathname, useRouter } from 'next/navigation';
 import { useAuthStore } from '@/store/useAuthStore';
 import { LayoutDashboard, ShoppingCart, Package, LogOut, Shield, Users } from 'lucide-react';
 import api from '@/lib/api';
+import { supabase } from '@/lib/supabase';
 
 export default function Layout({ children }: { children: React.ReactNode }) {
   const { user, logout } = useAuthStore();
-  const navigate = useNavigate();
+  const pathname = usePathname();
+  const router = useRouter();
 
   const handleLogout = async () => {
+    await supabase.auth.signOut();
     await api.post('/auth/logout');
     logout();
-    navigate('/login');
+    router.push('/login');
   };
 
   const navItems = [];
 
   if (user?.role === 'SUPER_ADMIN') {
-    navItems.push({ to: '/admin', label: 'Admin Panel', icon: Shield });
+    navItems.push({ href: '/admin', label: 'Admin Panel', icon: Shield });
   } else {
     navItems.push(
-      { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-      { to: '/pos', label: 'Billing', icon: ShoppingCart },
-      { to: '/inventory', label: 'Inventory', icon: Package }
+      { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+      { href: '/pos', label: 'Billing', icon: ShoppingCart },
+      { href: '/inventory', label: 'Inventory', icon: Package }
     );
     if (user?.role === 'OWNER') {
-      navItems.push({ to: '/staff', label: 'Staff', icon: Users });
+      navItems.push({ href: '/staff', label: 'Staff', icon: Users });
     }
   }
 
@@ -38,22 +44,23 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         </div>
 
         <nav className="flex-1 p-4 space-y-1">
-          {navItems.map(({ to, label, icon: Icon }) => (
-            <NavLink
-              key={to}
-              to={to}
-              className={({ isActive }) =>
-                `flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors ${
+          {navItems.map(({ href, label, icon: Icon }) => {
+            const isActive = pathname === href;
+            return (
+              <Link
+                key={href}
+                href={href}
+                className={`flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors ${
                   isActive
                     ? 'bg-primary text-primary-foreground shadow-md'
                     : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
-                }`
-              }
-            >
-              <Icon className="w-5 h-5" />
-              {label}
-            </NavLink>
-          ))}
+                }`}
+              >
+                <Icon className="w-5 h-5" />
+                {label}
+              </Link>
+            );
+          })}
         </nav>
 
         <div className="p-4 border-t border-border">
@@ -72,19 +79,20 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         <header className="md:hidden flex items-center justify-between p-4 border-b border-border bg-card">
           <h1 className="text-lg font-bold text-primary">Ladies Suit POS</h1>
           <nav className="flex gap-2">
-            {navItems.map(({ to, icon: Icon }) => (
-              <NavLink
-                key={to}
-                to={to}
-                className={({ isActive }) =>
-                  `p-2 rounded-lg transition-colors ${
+            {navItems.map(({ href, icon: Icon }) => {
+              const isActive = pathname === href;
+              return (
+                <Link
+                  key={href}
+                  href={href}
+                  className={`p-2 rounded-lg transition-colors ${
                     isActive ? 'bg-primary text-primary-foreground' : 'text-muted-foreground'
-                  }`
-                }
-              >
-                <Icon className="w-5 h-5" />
-              </NavLink>
-            ))}
+                  }`}
+                >
+                  <Icon className="w-5 h-5" />
+                </Link>
+              );
+            })}
           </nav>
         </header>
 

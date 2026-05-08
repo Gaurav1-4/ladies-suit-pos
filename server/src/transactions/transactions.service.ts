@@ -1,9 +1,15 @@
-import { Injectable, BadRequestException } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
+import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
+import { TransactionsRepository } from './transactions.repository';
+import { ProductsRepository } from '../products/products.repository';
+import { AuditService } from '../audit/audit.service';
 
 @Injectable()
 export class TransactionsService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private readonly transactionsRepository: TransactionsRepository,
+    private readonly productsRepository: ProductsRepository,
+    private readonly auditService: AuditService
+  ) {}
 
   async createTransaction(shopId: string, userId: string, data: any) {
     const { items, discount = 0, paymentMode = 'CASH', customerId } = data;
@@ -12,76 +18,108 @@ export class TransactionsService {
       throw new BadRequestException('Transaction must contain items');
     }
 
-    return this.prisma.$transaction(async (tx) => {
-      let totalAmount = 0;
+    const result = await this.transactionsRepository.executeTransaction(async (tx) => {
+      let subtotal = 0;
       
-      // Calculate total amount and verify stock
+      // 1. Validate items and stock
       for (const item of items) {
-        const product = await tx.product.findFirst({ where: { id: item.productId, shopId } });
+        const product = await tx.product.findFirst({ 
+          where: { id: item.productId, shopId, deletedAt: null } 
+        });
+        
         if (!product) throw new BadRequestException(`Product ${item.productId} not found`);
-        if (product.stockQty < item.quantity) throw new BadRequestException(`Insufficient stock for ${product.name}`);
+        if (product.stockQty < item.quantity) {
+          throw new BadRequestException(`Insufficient stock for ${product.name}. Available: ${product.stockQty}`);
+        }
 
-        totalAmount += product.sellPrice * item.quantity;
+        subtotal += product.sellPrice * item.quantity;
       }
 
-      totalAmount = totalAmount - discount;
+      const finalAmount = subtotal - discount;
 
-      // Create transaction
+      // 2. Create the Transaction record
       const transaction = await tx.transaction.create({
         data: {
           shopId,
-          userId,
           customerId,
-          totalAmount,
+          totalAmount: subtotal,
           discount,
+          finalAmount,
           paymentMode,
+          status: 'COMPLETED',
           items: {
             create: items.map((item: any) => ({
               productId: item.productId,
               quantity: item.quantity,
               unitPrice: item.unitPrice,
+              totalPrice: item.unitPrice * item.quantity,
             })),
           },
         },
         include: { items: true },
       });
 
-      // Update stock and create stock movements
+      // 3. Update stock and record movements
       for (const item of items) {
-        const product = await tx.product.findFirst({ where: { id: item.productId, shopId } });
-        if (!product) continue;
-
-        const prevStock = product.stockQty;
-        const newStock = prevStock - item.quantity;
-
         await tx.product.update({
-          where: { id: product.id },
-          data: { stockQty: newStock },
+          where: { id: item.productId },
+          data: { stockQty: { decrement: item.quantity } },
         });
 
         await tx.stockMovement.create({
           data: {
-            shopId,
-            productId: product.id,
+            productId: item.productId,
+            quantity: -item.quantity,
             type: 'OUT',
-            prevStock,
-            newStock,
-            quantity: item.quantity,
-            relatedId: transaction.id,
-            reason: 'SALE',
+            reason: `SALE - INV#${transaction.id.substring(0, 8)}`,
           },
         });
       }
 
       return transaction;
     });
+
+    // 4. Audit Log
+    await this.auditService.log({
+      userId,
+      action: 'CREATE_TRANSACTION',
+      entityType: 'TRANSACTION',
+      entityId: result.id,
+      newValues: result,
+    });
+
+    return result;
   }
 
   async findAll(shopId: string) {
-    return this.prisma.transaction.findMany({
-      where: { shopId },
-      include: { items: { include: { product: true } } },
-      orderBy: { createdAt: 'desc' },
+    return this.transactionsRepository.findAllActive(shopId);
+  }
+
+  async findOne(shopId: string, id: string) {
+    const transaction = await this.transactionsRepository.findById(shopId, id);
+    if (!transaction) throw new NotFoundException('Transaction not found');
+    return transaction;
+  }
+
+  async cancelTransaction(shopId: string, id: string, userId: string) {
+    const transaction = await this.findOne(shopId, id);
+    
+    if (transaction.status === 'CANCELLED') {
+      throw new BadRequestException('Transaction is already cancelled');
+    }
+
+    const cancelled = await this.transactionsRepository.softDelete(id);
+
+    // Audit Log
+    await this.auditService.log({
+      userId,
+      action: 'CANCEL_TRANSACTION',
+      entityType: 'TRANSACTION',
+      entityId: id,
+      oldValues: transaction,
+      newValues: cancelled,
     });
+
+    return cancelled;
   }
 }

@@ -10,7 +10,7 @@ export class ProductsController {
 
   @Post()
   create(@CurrentUser() user: any, @Body() data: any) {
-    return this.productsService.create(user.shopId, data);
+    return this.productsService.create(user.shopId, data, user.id);
   }
 
   @Get()
@@ -30,11 +30,11 @@ export class ProductsController {
 
   @Patch(':id')
   update(@CurrentUser() user: any, @Param('id') id: string, @Body() data: any) {
-    return this.productsService.update(user.shopId, id, data);
+    return this.productsService.update(user.shopId, id, data, user.id);
   }
 
   @Delete(':id')
   remove(@CurrentUser() user: any, @Param('id') id: string) {
-    return this.productsService.remove(user.shopId, id);
+    return this.productsService.remove(user.shopId, id, user.id);
   }
 }

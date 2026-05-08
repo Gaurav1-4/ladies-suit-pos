@@ -7,11 +7,12 @@ import { TransactionsModule } from './transactions/transactions.module';
 import { DashboardModule } from './dashboard/dashboard.module';
 import { AdminModule } from './admin/admin.module';
 
+import { AuditModule } from './audit/audit.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { UsersModule } from './users/users.module';
 
 @Module({
-  imports: [PrismaModule, AuthModule, ProductsModule, TransactionsModule, DashboardModule, AdminModule, UsersModule],
+  imports: [PrismaModule, AuditModule, AuthModule, ProductsModule, TransactionsModule, DashboardModule, AdminModule, UsersModule],
   controllers: [AppController],
   providers: [AppService],
 })

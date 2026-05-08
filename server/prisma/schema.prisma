@@ -1,5 +1,6 @@
 generator client {
-  provider = "prisma-client-js"
+  provider        = "prisma-client-js"
+  previewFeatures = ["postgresqlExtensions", "driverAdapters"]
 }
 
 datasource db {
@@ -12,121 +13,123 @@ enum UserRole {
   STAFF
 }
 
-enum StockMovementType {
-  IN
-  OUT
-  ADJUST
+enum PaymentMode {
+  CASH
+  UPI
+  CARD
+}
+
+enum TransactionStatus {
+  COMPLETED
+  CANCELLED
+  VOIDED
 }
 
 model Shop {
-  id        String   @id @default(uuid())
+  id        String    @id @default(uuid())
   name      String
   address   String?
   phone     String?
-  createdAt DateTime @default(now())
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
 
-  users          User[]
-  categories     Category[]
-  products       Product[]
-  customers      Customer[]
-  suppliers      Supplier[]
-  transactions   Transaction[]
-  purchases      Purchase[]
-  stockMovements StockMovement[]
-  auditLogs      AuditLog[]
+  users        User[]
+  products     Product[]
+  categories   Category[]
+  customers    Customer[]
+  transactions Transaction[]
+  suppliers    Supplier[]
 }
 
 model User {
-  id           String   @id @default(uuid())
+  id           String    @id @default(uuid())
   shopId       String?
-  shop         Shop?    @relation(fields: [shopId], references: [id])
+  shop         Shop?     @relation(fields: [shopId], references: [id])
   name         String
-  email        String   @unique
+  email        String    @unique
   passwordHash String
-  role         UserRole @default(STAFF)
-  createdAt    DateTime @default(now())
+  role         UserRole  @default(STAFF)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  deletedAt    DateTime?
 
-  transactions Transaction[]
-  purchases    Purchase[]
-  auditLogs    AuditLog[]
-}
-
-model Category {
-  id     String @id @default(uuid())
-  shopId String
-  shop   Shop   @relation(fields: [shopId], references: [id])
-  name   String
-
-  products Product[]
-
-  @@unique([shopId, name])
+  auditLogs AuditLog[]
 }
 
 model Product {
-  id           String   @id @default(uuid())
+  id           String    @id @default(uuid())
   shopId       String
-  shop         Shop     @relation(fields: [shopId], references: [id])
-  categoryId   String
-  category     Category @relation(fields: [categoryId], references: [id])
-  
-  sku          String?
-  barcode      String?
+  shop         Shop      @relation(fields: [shopId], references: [id])
+  categoryId   String?
+  category     Category? @relation(fields: [categoryId], references: [id])
   name         String
+  sku          String?
   costPrice    Float
   sellPrice    Float
-  stockQty     Int      @default(0)
-  minStock     Int      @default(5)
+  stockQty     Int       @default(0)
+  minStock     Int       @default(5)
   imageUrl     String?
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  deletedAt    DateTime?
 
   transactionItems TransactionItem[]
-  purchaseItems    PurchaseItem[]
   stockMovements   StockMovement[]
-
-  @@unique([shopId, sku])
-  @@unique([shopId, barcode])
 }
 
-model Customer {
-  id     String @id @default(uuid())
-  shopId String
-  shop   Shop   @relation(fields: [shopId], references: [id])
-  name   String
-  phone  String?
-  email  String?
+model Category {
+  id        String    @id @default(uuid())
+  shopId    String
+  shop      Shop      @relation(fields: [shopId], references: [id])
+  name      String
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
 
-  transactions Transaction[]
-
-  @@unique([shopId, phone])
+  products Product[]
 }
 
 model Supplier {
-  id     String @id @default(uuid())
-  shopId String
-  shop   Shop   @relation(fields: [shopId], references: [id])
-  name   String
-  phone  String?
-  email  String?
+  id        String    @id @default(uuid())
+  shopId    String
+  shop      Shop      @relation(fields: [shopId], references: [id])
+  name      String
+  contact   String?
+  email     String?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+}
 
-  purchases Purchase[]
+model Customer {
+  id        String    @id @default(uuid())
+  shopId    String
+  shop      Shop      @relation(fields: [shopId], references: [id])
+  name      String
+  phone     String?
+  email     String?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
 
-  @@unique([shopId, name])
+  transactions Transaction[]
 }
 
 model Transaction {
-  id          String   @id @default(uuid())
+  id          String            @id @default(uuid())
   shopId      String
-  shop        Shop     @relation(fields: [shopId], references: [id])
+  shop        Shop              @relation(fields: [shopId], references: [id])
   customerId  String?
-  customer    Customer? @relation(fields: [customerId], references: [id])
-  userId      String
-  user        User     @relation(fields: [userId], references: [id])
-  
+  customer    Customer?         @relation(fields: [customerId], references: [id])
   totalAmount Float
-  discount    Float    @default(0)
-  paymentMode String   @default("CASH") // CASH, CARD, UPI
-  createdAt   DateTime @default(now())
+  discount    Float             @default(0)
+  finalAmount Float
+  paymentMode PaymentMode       @default(CASH)
+  status      TransactionStatus @default(COMPLETED)
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+  deletedAt   DateTime?
 
   items TransactionItem[]
 }
@@ -134,63 +137,34 @@ model Transaction {
 model TransactionItem {
   id            String      @id @default(uuid())
   transactionId String
-  transaction   Transaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+  transaction   Transaction @relation(fields: [transactionId], references: [id])
   productId     String
   product       Product     @relation(fields: [productId], references: [id])
   quantity      Int
   unitPrice     Float
-}
-
-model Purchase {
-  id          String   @id @default(uuid())
-  shopId      String
-  shop        Shop     @relation(fields: [shopId], references: [id])
-  supplierId  String
-  supplier    Supplier @relation(fields: [supplierId], references: [id])
-  userId      String
-  user        User     @relation(fields: [userId], references: [id])
-  
-  totalAmount Float
-  createdAt   DateTime @default(now())
-
-  items PurchaseItem[]
-}
-
-model PurchaseItem {
-  id         String   @id @default(uuid())
-  purchaseId String
-  purchase   Purchase @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
-  productId  String
-  product    Product  @relation(fields: [productId], references: [id])
-  quantity   Int
-  costPrice  Float
+  totalPrice    Float
 }
 
 model StockMovement {
-  id        String            @id @default(uuid())
-  shopId    String
-  shop      Shop              @relation(fields: [shopId], references: [id])
+  id        String   @id @default(uuid())
   productId String
-  product   Product           @relation(fields: [productId], references: [id])
-  
-  type      StockMovementType
-  prevStock Int
-  newStock  Int
+  product   Product  @relation(fields: [productId], references: [id])
   quantity  Int
-  relatedId String?           // ID of Transaction or Purchase
+  type      String // IN, OUT, ADJUSTMENT
   reason    String?
-  createdAt DateTime          @default(now())
+  createdAt DateTime @default(now())
 }
 
 model AuditLog {
-  id        String   @id @default(uuid())
-  shopId    String
-  shop      Shop     @relation(fields: [shopId], references: [id])
-  userId    String
-  user      User     @relation(fields: [userId], references: [id])
-  
-  action    String   // CREATE, UPDATE, DELETE
-  entity    String   // Product, Transaction, etc.
-  entityId  String
-  timestamp DateTime @default(now())
+  id         String   @id @default(uuid())
+  userId     String?
+  user       User?    @relation(fields: [userId], references: [id])
+  action     String // e.g., "CREATE_PRODUCT", "DELETE_TRANSACTION"
+  entityType String // e.g., "PRODUCT", "TRANSACTION"
+  entityId   String
+  oldValues  Json?
+  newValues  Json?
+  ipAddress  String?
+  userAgent  String?
+  createdAt  DateTime @default(now())
 }
