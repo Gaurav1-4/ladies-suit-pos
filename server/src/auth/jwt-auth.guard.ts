@@ -1,17 +1,29 @@
 import { Injectable, CanActivate, ExecutionContext, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
+import { Reflector } from '@nestjs/core';
+import { IS_PUBLIC_KEY } from './public.decorator';
 import type { Request } from 'express';
 
 @Injectable()
 export class JwtAuthGuard implements CanActivate {
-  constructor(private jwtService: JwtService) {}
+  constructor(
+    private jwtService: JwtService,
+    private reflector: Reflector
+  ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
+    const isPublic = this.reflector.getAllAndOverride<boolean>(IS_PUBLIC_KEY, [
+      context.getHandler(),
+      context.getClasses(),
+    ]);
+
+    if (isPublic) {
+      return true;
+    }
+
     const request = context.switchToHttp().getRequest<Request>();
     
-    // Support both Bearer token (Supabase standard) and Cookie (our old standard)
     let token = request.cookies?.['access_token'];
-    
     const authHeader = request.headers.authorization;
     if (authHeader?.startsWith('Bearer ')) {
       token = authHeader.split(' ')[1];
@@ -22,12 +34,10 @@ export class JwtAuthGuard implements CanActivate {
     }
     
     try {
-      // For Supabase, the payload structure includes 'sub' as the user's ID
       const payload = await this.jwtService.verifyAsync(token, {
         secret: process.env.JWT_SECRET,
       });
       
-      // Map Supabase sub to user id for our internal logic
       (request as any).user = {
         ...payload,
         id: payload.sub,

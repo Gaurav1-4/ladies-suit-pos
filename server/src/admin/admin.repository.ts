@@ -33,7 +33,7 @@ export class AdminRepository {
     });
   }
 
-  async createShopWithOwner(shopData: { name: string }, ownerData: any) {
+  async createShopWithOwner(shopData: { name: string }, ownerData: { name: string; email: string; supabaseId?: string; passwordHash?: string }) {
     return this.prisma.$transaction(async (tx) => {
       const shop = await tx.shop.create({
         data: shopData,

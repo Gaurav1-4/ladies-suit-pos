@@ -18,8 +18,11 @@ export class AdminService {
     return this.adminRepository.findAllUsersActive();
   }
 
-  async createShop(data: { name: string; ownerName: string; ownerEmail: string; ownerPasswordHash: string }, adminId?: string) {
-    const passwordHash = await bcrypt.hash(data.ownerPasswordHash, 10);
+  async createShop(data: { name: string; ownerName: string; ownerEmail: string; ownerPasswordHash?: string; supabaseId?: string }, adminId?: string) {
+    let passwordHash = null;
+    if (data.ownerPasswordHash && data.ownerPasswordHash !== 'EXTERNAL_SUPABASE_AUTH') {
+      passwordHash = await bcrypt.hash(data.ownerPasswordHash, 10);
+    }
 
     const result = await this.adminRepository.createShopWithOwner(
       { name: data.name },
@@ -27,6 +30,7 @@ export class AdminService {
         name: data.ownerName,
         email: data.ownerEmail,
         passwordHash,
+        supabaseId: data.supabaseId
       }
     );
 
