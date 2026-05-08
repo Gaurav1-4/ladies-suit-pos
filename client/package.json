@@ -10,8 +10,8 @@
   },
   "dependencies": {
     "next": "15.0.3",
-    "react": "19.0.0-rc-66854b9a-20241106",
-    "react-dom": "19.0.0-rc-66854b9a-20241106",
+    "react": "rc",
+    "react-dom": "rc",
     "lucide-react": "^0.454.0",
     "zustand": "^5.0.1",
     "axios": "^1.7.7",
@@ -22,15 +22,16 @@
     "recharts": "^2.13.3",
     "react-to-print": "^3.0.2",
     "date-fns": "^4.1.0",
-    "@supabase/supabase-js": "^2.46.1"
+    "@supabase/supabase-js": "^2.46.1",
+    "tailwindcss": "^3.4.1",
+    "postcss": "^8",
+    "autoprefixer": "^10.4.20"
   },
   "devDependencies": {
     "typescript": "^5",
     "@types/node": "^20",
     "@types/react": "^18",
     "@types/react-dom": "^18",
-    "postcss": "^8",
-    "tailwindcss": "^3.4.1",
     "eslint": "^8",
     "eslint-config-next": "15.0.3"
   }
